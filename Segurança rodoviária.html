@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Estrada Segura</title>
+<style>
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: white;
+    text-align: center;
+    background: linear-gradient(135deg, #0a0f1f, #1c2331, #0a0f1f);
+    background-size: 400% 400%;
+    animation: fundoAnimado 12s ease infinite;
+  }
+
+  @keyframes fundoAnimado {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  h1 {
+    margin-top: 20px;
+    font-size: 40px;
+    letter-spacing: 3px;
+    text-shadow: 0 0 15px #00aaff;
+  }
+
+  canvas {
+    background: #2d2d2d;
+    display: block;
+    margin: 25px auto;
+    border-radius: 18px;
+    box-shadow: 0 0 25px rgba(0, 170, 255, 0.5),
+                0 0 60px rgba(0, 170, 255, 0.2);
+    border: 3px solid rgba(255,255,255,0.2);
+  }
+
+  .btn {
+    padding: 12px 35px;
+    font-size: 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(6px);
+    color: white;
+    cursor: pointer;
+    transition: 0.25s;
+    margin: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
+  }
+
+  .btn:hover {
+    background: rgba(0,150,255,0.3);
+    transform: scale(1.05);
+  }
+
+  #hud {
+    font-size: 20px;
+    margin-top: -5px;
+    text-shadow: 0 0 10px #000;
+    letter-spacing: 1px;
+  }
+
+  #menu, #gameOverScreen, #levelScreen {
+    background: rgba(255,255,255,0.08);
+    padding: 20px;
+    border-radius: 15px;
+    width: 70%;
+    margin: 15px auto;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  #instructions {
+    background: rgba(255,255,255,0.05);
+    padding: 15px;
+    border-radius: 12px;
+    margin-top: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  #info {
+    opacity: 0.8;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<h1>🚗 Estrada Segura</h1>
+
+<div id="container">
+  <div id="menu">
+    <p>Jogo de prevenção rodoviária: desvia-te dos carros, apanha boas práticas e usa os power‑ups!</p>
+    <p style="margin-top:15px; opacity:0.8; font-size:16px;"> Trabalho feito por <b>Rodrigo Ferreira nº23 11K</b> </p>
+    <button id="btnStart" class="btn">Iniciar Jogo</button>
+    <button id="btnInstructions" class="btn">Instruções</button>
+    <div id="instructions" style="display:none; max-width:600px; margin:10px auto; text-align:left;">
+      <h3>Instruções</h3>
+      <ul>
+        <li>Usa as setas <b>←</b> e <b>→</b> para mudar de faixa.</li>
+        <li>Evita os carros vermelhos.</li>
+        <li>Apanha as moedas verdes para ganhar pontos.</li>
+        <li>Apanha power‑ups:
+          <ul>
+            <li>🛡 Escudo: ficas protegido de uma colisão.</li>
+            <li>❤️ Vida extra: ganhas +1 vida.</li>
+            <li>✨ Dobro de pontos: durante algum tempo, cada moeda vale o dobro.</li>
+          </ul>
+        </li>
+        <li>Carrega em <b>P</b> para pausar/retomar o jogo.</li>
+      </ul>
+      <p><b>Dica de segurança:</b> Na vida real, respeita sempre os sinais, usa cinto e nunca uses o telemóvel ao volante.</p>
+    </div>
+  </div>
+
+  <canvas id="game" width="400" height="500"></canvas>
+  <div id="hud"></div>
+
+  <div id="levelScreen" style="display:none;">
+    <h3 id="levelTitle"></h3>
+    <p id="levelMessage"></p>
+    <button id="btnNextLevel" class="btn">Continuar</button>
+  </div>
+
+  <div id="gameOverScreen" style="display:none;">
+    <h2>🚨 Fim do jogo</h2>
+    <p style="opacity:0.8; margin-top:10px;"> Trabalho realizado por Rodrigo Ferreira nº23 11K </p>
+    <p id="finalScore"></p>
+    <p id="finalTip"></p>
+    <button id="btnRestart" class="btn">Jogar outra vez</button>
+  </div>
+
+  <div id="info">Trabalho feito por Rodrigo Ferreira nº23 11K • Pausa: tecla <b>P</b> • Segurança rodoviária salva vidas.</div>
+</div>
+
+<script>
+  let proporcaoJogador = 1;
+let proporcaoInimigo = 1;
+let proporcaoMoeda = 1;
+let proporcaoEscudo = 1;
+let proporcaoVida = 1;
+let proporcaoDobro = 1;
+
+// ---------- Canvas e UI ----------
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const hud = document.getElementById("hud");
+
+const menu = document.getElementById("menu");
+const btnStart = document.getElementById("btnStart");
+const btnInstructions = document.getElementById("btnInstructions");
+const instructions = document.getElementById("instructions");
+
+const levelScreen = document.getElementById("levelScreen");
+const levelTitle = document.getElementById("levelTitle");
+const levelMessage = document.getElementById("levelMessage");
+const btnNextLevel = document.getElementById("btnNextLevel");
+
+const gameOverScreen = document.getElementById("gameOverScreen");
+const finalScore = document.getElementById("finalScore");
+const finalTip = document.getElementById("finalTip");
+const btnRestart = document.getElementById("btnRestart");
+
+// ---------- Imagens ----------
+const imgJogador = new Image();
+imgJogador.src = "carro_jogador.png";
+
+const imgInimigo = new Image();
+imgInimigo.src = "carro_inimigo.png";
+
+const imgBom = new Image();
+imgBom.src = "objeto_bom.png";
+
+const imgEscudo = new Image();
+imgEscudo.src = "power_escudo.png";
+
+const imgVida = new Image();
+imgVida.src = "power_vida.png";
+
+const imgDobro = new Image();
+imgDobro.src = "power_dobro.png";
+
+// ---------- Sons ----------
+const somMoeda = new Audio("som_moeda.mp3");
+const somColisao = new Audio("som_colisao.mp3");
+const somNivel = new Audio("som_nivel.mp3");
+
+// ---------- Configuração das faixas ----------
+const NUM_FAIXAS = 10;
+const margem = 20;
+const larguraEstrada = 400 - margem * 2;
+const passo = larguraEstrada / (NUM_FAIXAS - 1);
+const faixasX = Array.from({length: NUM_FAIXAS}, (_, i) => margem + i * passo);
+
+// ---------- Estado do jogo ----------
+let estado = "menu"; // "menu", "jogo", "pausa", "nivel", "gameover"
+
+let carro = {
+  faixa: 4,
+  x: faixasX[4],
+  y: 380,
+  w: 50,
+  h: 110
+};
+
+let inimigos = [];
+let objetos = [];
+let powerUps = [];
+
+let pontos = 0;
+let vidas = 3;
+let dificuldadeBase = 1;
+let dificuldadeAtual = 1;
+let nivel = 1;
+
+let jogoAtivo = false;
+let escudoAtivo = false;
+let dobroPontosAtivo = false;
+let tempoDobroPontos = 0;
+
+// ---------- Mensagens educativas ----------
+const mensagensSeguranca = [
+  "Usa sempre o cinto de segurança, mesmo em viagens curtas.",
+  "Nunca uses o telemóvel enquanto conduzes.",
+  "Respeita os limites de velocidade — são para tua proteção.",
+  "Para atravessar, usa a passadeira e olha para os dois lados.",
+  "Álcool e condução não combinam. Escolhe sempre chegar vivo."
+];
+
+// ---------- Controlo ----------
+document.addEventListener("keydown", e => {
+  if (!jogoAtivo) return;
+
+  if (e.key === "ArrowLeft" && carro.faixa > 0) {
+    carro.faixa--;
+  }
+  if (e.key === "ArrowRight" && carro.faixa < NUM_FAIXAS - 1) {
+    carro.faixa++;
+  }
+});
+
+function animarMovimentoCarro() {
+  const alvoX = faixasX[carro.faixa];
+  carro.x += (alvoX - carro.x) * 0.25;
+}
+
+
+// ---------- Criação de entidades ----------
+function criarCarroInimigo() {
+  if (estado !== "jogo") return;
+
+  const faixa = Math.floor(Math.random() * NUM_FAIXAS);
+  inimigos.push({
+    tipo: "carro",
+    faixa: faixa,
+    x: faixasX[faixa],
+    y: -220,
+    w: 60,
+    h: 130,
+    speed: 2 + Math.random() * dificuldadeAtual
+  });
+}
+
+function criarMoeda() {
+  if (estado !== "jogo") return;
+
+  const faixa = Math.floor(Math.random() * NUM_FAIXAS);
+  objetos.push({
+    tipo: "moeda",
+    faixa: faixa,
+    x: faixasX[faixa],
+    y: -40,
+    w: 35,
+    h: 35
+  });
+}
+
+function criarPowerUp() {
+  if (estado !== "jogo") return;
+
+  const tipos = ["escudo", "vida", "dobro"];
+  const tipo = tipos[Math.floor(Math.random() * tipos.length)];
+  const faixa = Math.floor(Math.random() * NUM_FAIXAS);
+
+  powerUps.push({
+    tipo: tipo,
+    faixa: faixa,
+    x: faixasX[faixa],
+    y: -50,
+    w: 35,
+    h: 35
+  });
+}
+
+// ---------- Colisões ----------
+function colisaoCarroJogador(inimigo) {
+  if (inimigo.faixa !== carro.faixa) return false;
+  return (
+    carro.y < inimigo.y + inimigo.h &&
+    carro.y + carro.h > inimigo.y
+  );
+}
+
+function colisao(a, b) {
+  return (
+    a.x - a.w/2 < b.x - b.w/2 + b.w &&
+    a.x - a.w/2 + a.w > b.x - b.w/2 &&
+    a.y < b.y + b.h &&
+    a.y + a.h > b.y
+  );
+}
+
+// ---------- Lógica de ultrapassagens ----------
+function gerirUltrapassagens() {
+  for (let i = 0; i < inimigos.length; i++) {
+    for (let j = 0; j < inimigos.length; j++) {
+      if (i === j) continue;
+      let c1 = inimigos[i];
+      let c2 = inimigos[j];
+      if (c1.faixa !== c2.faixa) continue;
+      if (c1.y < c2.y && c2.y - c1.y < 150) {
+        c1.speed = Math.min(c1.speed, c2.speed * 0.9);
+      }
+    }
+  }
+}
+
+// ---------- Níveis ----------
+function verificarNivel() {
+  const alvo = nivel * 100;
+  if (pontos >= alvo) {
+    nivel++;
+    dificuldadeAtual = dificuldadeBase + (nivel - 1) * 0.7;
+    estado = "nivel";
+    jogoAtivo = false;
+    somNivel.currentTime = 0;
+    somNivel.play().catch(()=>{});
+    mostrarEcrãNivel();
+  }
+}
+
+function mensagemSegurancaAleatoria() {
+  return mensagensSeguranca[Math.floor(Math.random() * mensagensSeguranca.length)];
+}
+
+function mostrarEcrãNivel() {
+  levelTitle.textContent = `Nível ${nivel}`;
+  levelMessage.textContent = mensagemSegurancaAleatoria();
+  levelScreen.style.display = "block";
+}
+
+// ---------- Game Over ----------
+function gameOver() {
+  estado = "gameover";
+  jogoAtivo = false;
+  gameOverScreen.style.display = "block";
+  finalScore.textContent = `Pontuação final: ${pontos}`;
+  finalTip.textContent = mensagemSegurancaAleatoria();
+}
+
+// ---------- Desenho ----------
+function desenharEstrada() {
+  ctx.fillStyle = "#2b2b2b";
+  ctx.fillRect(0, 0, 400, 500);
+
+ faixasX.forEach((x, i) => {
+  ctx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.05)" : "rgba(0,150,255,0.08)";
+  ctx.fillRect(x - 22, 0, 44, 500);
+
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.fillRect(x - 2, 0, 4, 500);
+})
+};
+
+
+function desenharJogador() {
+  // sombra suave
+  ctx.shadowColor = "rgba(0, 200, 255, 0.5)";
+  ctx.shadowBlur = 25;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  // desenhar carro
+  ctx.drawImage(
+    imgJogador,
+    carro.x - carro.w / 2,
+    carro.y,
+    carro.w,
+    carro.h
+  );
+
+  // remover sombra
+  ctx.shadowBlur = 0;
+
+  // escudo visual
+  if (escudoAtivo) {
+    ctx.strokeStyle = "rgba(0, 255, 255, 0.8)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(carro.x, carro.y + carro.h / 2, carro.w * 0.8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function desenharInimigos() {
+  inimigos.forEach(c => {
+    ctx.save();
+ctx.translate(c.x, c.y + c.h);
+ctx.scale(1, -1);
+ctx.drawImage(imgInimigo, -c.w/2, 0, c.w, c.h);
+ctx.restore();
+
+  });
+}
+
+function desenharObjetos() {
+  objetos.forEach(o => {
+    ctx.drawImage(imgBom, o.x - o.w/2, o.y, o.w, o.h);
+  });
+}
+
+function desenharPowerUps() {
+  powerUps.forEach(p => {
+    let img = imgEscudo;
+    if (p.tipo === "vida") img = imgVida;
+    if (p.tipo === "dobro") img = imgDobro;
+    ctx.drawImage(img, p.x - p.w/2, p.y, p.w, p.h);
+  });
+}
+
+// ---------- Atualização ----------
+function atualizar(dt) {
+  if (estado !== "jogo") return;
+
+  gerirUltrapassagens();
+
+  inimigos.forEach(c => {
+    c.y += c.speed;
+  });
+  inimigos = inimigos.filter(c => c.y < 600);
+
+  objetos.forEach(o => {
+    o.y += 3;
+  });
+  objetos = objetos.filter(o => o.y < 600);
+
+  powerUps.forEach(p => {
+    p.y += 3;
+  });
+  powerUps = powerUps.filter(p => p.y < 600);
+
+  inimigos.slice().forEach(c => {
+    if (colisaoCarroJogador(c)) {
+      if (escudoAtivo) {
+        escudoAtivo = false;
+        inimigos.splice(inimigos.indexOf(c), 1);
+      } else {
+        vidas--;
+        somColisao.currentTime = 0;
+        somColisao.play().catch(()=>{});
+        inimigos.splice(inimigos.indexOf(c), 1);
+        if (vidas <= 0) {
+          gameOver();
+        }
+      }
+    }
+  });
+
+  objetos.slice().forEach(o => {
+    if (colisao(carro, o)) {
+      let ganho = dobroPontosAtivo ? 20 : 10;
+      pontos += ganho;
+      somMoeda.currentTime = 0;
+      somMoeda.play().catch(()=>{});
+      objetos.splice(objetos.indexOf(o), 1);
+    }
+  });
+
+  powerUps.slice().forEach(p => {
+    if (colisao(carro, p)) {
+      if (p.tipo === "escudo") {
+        escudoAtivo = true;
+      } else if (p.tipo === "vida") {
+        vidas++;
+      } else if (p.tipo === "dobro") {
+        dobroPontosAtivo = true;
+        tempoDobroPontos = 8000;
+      }
+      powerUps.splice(powerUps.indexOf(p), 1);
+    }
+  });
+
+  if (dobroPontosAtivo) {
+    tempoDobroPontos -= dt;
+    if (tempoDobroPontos <= 0) {
+      dobroPontosAtivo = false;
+    }
+  }
+
+  verificarNivel();
+}
+
+// ---------- Loop ----------
+let ultimoTempo = 0;
+function loop(timestamp) {
+  const dt = timestamp - ultimoTempo;
+  ultimoTempo = timestamp;
+
+  if (estado === "jogo") {
+    atualizar(dt);
+    ctx.clearRect(0, 0, 400, 500);
+    desenharEstrada();
+    animarMovimentoCarro();
+    desenharJogador();
+    desenharInimigos();
+    desenharObjetos();
+    desenharPowerUps();
+    hud.textContent = `Nível: ${nivel} | Pontos: ${pontos} | Vidas: ${vidas}` +
+      (dobroPontosAtivo ? " | ✨ Dobro de pontos!" : "") +
+      (escudoAtivo ? " | 🛡 Escudo ativo" : "");
+  } else if (estado === "pausa") {
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(0,0,400,500);
+    ctx.fillStyle = "white";
+    ctx.font = "24px Arial";
+    ctx.fillText("PAUSA", 160, 240);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// ---------- Botões ----------
+btnStart.onclick = () => {
+  menu.style.display = "none";
+  estado = "jogo";
+  jogoAtivo = true;
+};
+
+btnInstructions.onclick = () => {
+  instructions.style.display = instructions.style.display === "none" ? "block" : "none";
+};
+
+btnNextLevel.onclick = () => {
+  levelScreen.style.display = "none";
+  estado = "jogo";
+  jogoAtivo = true;
+};
+
+btnRestart.onclick = () => {
+  gameOverScreen.style.display = "none";
+  resetJogo();
+  estado = "jogo";
+  jogoAtivo = true;
+};
+
+// ---------- Reset ----------
+function resetJogo() {
+  carro.faixa = 4;
+  carro.x = faixasX[4];
+  carro.y = 380;
+
+  inimigos = [];
+  objetos = [];
+  powerUps = [];
+
+  pontos = 0;
+  vidas = 3;
+  nivel = 1;
+  dificuldadeAtual = dificuldadeBase;
+  escudoAtivo = false;
+  dobroPontosAtivo = false;
+  tempoDobroPontos = 0;
+}
+
+// ---------- Timers ----------
+setInterval(() => {
+  if (estado === "jogo") criarCarroInimigo();
+}, 900);
+
+setInterval(() => {
+  if (estado === "jogo") criarMoeda();
+}, 1100);
+
+setInterval(() => {
+  if (estado === "jogo" && Math.random() < 0.4) criarPowerUp();
+}, 5000);
+
+// ---------- Iniciar loop ----------
+requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>
